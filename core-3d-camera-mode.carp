@@ -1,0 +1,35 @@
+(load "raylib4carp/main.carp")
+
+(defn-do main []
+  (let [screen-width 800, screen-height 450]
+    (init-window screen-width screen-height (cstr "raylib [core] example - 3d camera mode")))
+  (set-target-fps 60)
+
+  (let [
+    camera
+    (Camera3D.init
+      (Vector3.init 0.0f 10.0f 10.0f)
+      (Vector3.init 0.0f 0.0f 0.0f)
+      (Vector3.init 0.0f 1.0f 0.0f)
+      45.0f
+      CameraProjection.camera-perspective),
+    cube-position
+    (Vector3.init 0.0f, 0.0f, 0.0f)]
+    (while-do (not (window-should-close))
+      (begin-drawing)
+      
+      (clear-background Color.raywhite)
+      
+      (begin-mode-3d camera)
+      (draw-cube cube-position 2.0f 2.0f 2.0f Color.red)
+      (draw-cube-wires cube-position 2.0f 2.0f 2.0f Color.maroon)
+      (draw-grid 10 1.0f)
+      (end-mode-3d)
+      
+      (draw-text (cstr "Welcome to the third dimension!") 10 40 20 Color.darkgray)
+      (draw-fps 10 10)
+      
+      (end-drawing)))
+  
+  (close-window)
+  0)
