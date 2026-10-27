@@ -1,0 +1,12 @@
+(load "raylib4carp/main.carp")
+
+(defn-do main []
+  (init-window 800 450 (cstr "raylib [core] example - basic window"))
+  (set-target-fps 60)
+  (while-do (not (window-should-close))
+    (begin-drawing)
+    (clear-background Color.raywhite)
+    (draw-text (cstr "Congrats! You created your first window!") 190 200 20 Color.lightgray)
+    (end-drawing))
+  (close-window)
+  0)
