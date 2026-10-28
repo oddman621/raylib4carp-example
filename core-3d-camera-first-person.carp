@@ -1,0 +1,129 @@
+(load "raylib4carp/main.carp")
+
+;; rcamera modules
+(relative-include "rcamera.h")
+(register CameraYaw (λ [(Ptr Camera3D) Float Bool] ()) "CameraYaw")
+(defn camera-yaw [camera angle rotate-around-target]
+  (CameraYaw (Pointer.address camera) angle rotate-around-target))
+(register CameraPitch (λ [(Ptr Camera3D) Float Bool Bool Bool] ()) "CameraPitch")
+(defn camera-pitch [camera angle lock-view rotate-around-target rotate-up]
+  (CameraPitch (Pointer.address camera) angle lock-view rotate-around-target rotate-up))
+
+(def max-columns 20)
+
+(defn-do main []
+  (let [screen-width 800, screen-height 450]
+    (init-window screen-width screen-height (cstr "raylib [core] example - 3d camera first person")))
+  (set-target-fps 60)
+  (set-exit-key 0)
+  (disable-cursor)
+
+  (let-do [
+    camera (Camera3D.init
+      (Vector3.init 0.0f 2.0f 4.0f)
+      (Vector3.init 0.0f 2.0f 0.0f)
+      (Vector3.init 0.0f 1.0f 0.0f)
+      60.0f
+      CameraProjection.camera-perspective),
+    camera-mode CameraMode.camera-first-person,
+    heights (the (Array Float) (Array.allocate max-columns)),
+    positions (the (Array Vector3) (Array.allocate max-columns)),
+    colors (the (Array Color) (Array.allocate max-columns))]
+
+    (for [i 0 max-columns]
+      (do
+        (Array.aset! &heights i (Float.from-int (get-random-value 1 12)))
+        (Array.aset! &positions i
+          (Vector3.init
+            (Float.from-int (get-random-value -15 15))
+            (/ @(Array.unsafe-nth &heights i) 2.0f)
+            (Float.from-int (get-random-value -15 15))))
+        (Array.aset! &colors i
+          (Color.init
+            (Byte.from-int (get-random-value 20 255))
+            (Byte.from-int (get-random-value 10 55))
+          30b 255b))))
+
+
+    (set-exit-key KeyboardKey.key-escape)
+    (while-do (not (window-should-close))
+      
+      ;; Update
+      
+      (if (is-key-pressed KeyboardKey.key-one)
+        (do
+          (set! camera-mode CameraMode.camera-free)
+          (Camera3D.set-up! &camera (Vector3.init 0.0f 1.0f 0.0f)))
+        ())
+      (if (is-key-pressed KeyboardKey.key-two)
+        (do
+          (set! camera-mode CameraMode.camera-first-person)
+          (Camera3D.set-up! &camera (Vector3.init 0.0f 1.0f 0.0f)))
+        ())
+      (if (is-key-pressed KeyboardKey.key-three)
+        (do
+          (set! camera-mode CameraMode.camera-third-person)
+          (Camera3D.set-up! &camera (Vector3.init 0.0f 1.0f 0.0f)))
+        ())
+      (if (is-key-pressed KeyboardKey.key-four)
+        (do
+          (set! camera-mode CameraMode.camera-orbital)
+          (Camera3D.set-up! &camera (Vector3.init 0.0f 1.0f 0.0f)))
+        ())
+      (if (is-key-pressed KeyboardKey.key-p)
+        (if (= @(Camera3D.projection &camera) CameraProjection.camera-perspective)
+          (do
+            (set! camera-mode CameraMode.camera-third-person)
+            (Camera3D.set-position! &camera (Vector3.init 0.0f 2.0f -100.0f))
+            (Camera3D.set-target! &camera (Vector3.init 0.0f 2.0f 0.0f))
+            (Camera3D.set-up! &camera (Vector3.init 0.0f 1.0f 0.0f))
+            (Camera3D.set-projection! &camera CameraProjection.camera-orthographic)
+            (Camera3D.set-fovy! &camera 20.0f)
+            (camera-yaw &camera (* -135.0f deg2rad) true)
+            (camera-pitch &camera (* -45.0f deg2rad) true true false)
+            (if (= @(Camera3D.projection &camera) CameraProjection.camera-perspective)
+              (do
+                (set! camera-mode CameraMode.camera-third-person)
+                (Camera3D.set-position! &camera (Vector3.init 0.0f 2.0f 10.0f))
+                (Camera3D.set-target! &camera (Vector3.init 0.0f 2.0f 0.0f))
+                (Camera3D.set-up! &camera (Vector3.init 0.0f 1.0f 0.0f))
+                (Camera3D.set-projection! &camera CameraProjection.camera-perspective)
+                (Camera3D.set-fovy! &camera 60.0f))
+              ()))
+          ())
+        ())
+      (update-camera &camera camera-mode)
+
+      ;; Draw
+      
+      (begin-drawing)
+      
+      (clear-background Color.raywhite)
+      
+      (begin-mode-3d camera)
+      (draw-plane (Vector3.init 0.0f, 0.0f, 0.0f) (Vector2.init 32.0f 32.0f) Color.lightgray)
+      (draw-cube (Vector3.init -16.0f 2.5f 0.0f) 1.0f 5.0f 32.0f Color.blue)
+      (draw-cube (Vector3.init 16.0f 2.5f 0.0f) 1.0f 5.0f 32.0f Color.lime)
+      (draw-cube (Vector3.init 0.0f 2.5f 16.0f) 32.0f 5.0f 1.0f Color.gold)
+      (for [i 0 max-columns]
+        (do
+          (draw-cube @(Array.unsafe-nth &positions i) 2.0f @(Array.unsafe-nth &heights i) 2.0f @(Array.unsafe-nth &colors i))
+          (draw-cube-wires @(Array.unsafe-nth &positions i) 2.0f @(Array.unsafe-nth &heights i) 2.0f Color.maroon)))
+      (end-mode-3d)
+
+      (draw-rectangle 5 5 330 100 (fade Color.skyblue 0.5f))
+      (draw-rectangle-lines 5 5 330 100 Color.blue)
+
+      (draw-text "Camera controls:" 15 15 10 Color.black)
+      (draw-text "- Move keys: W, A, S, D, Space, Left-Ctrl" 15 30 10 Color.black)
+      (draw-text "- Look around: arrow keys or mouse" 15 45 10 Color.black)
+      (draw-text "- Camera mode keys: 1, 2, 3, 4" 15 60 10 Color.black)
+      (draw-text "- Zoom keys: num-plus, num-minus or mouse scroll" 15 75 10 Color.black)
+      (draw-text "- Camera projection key: P" 15 90 10 Color.black)
+
+      ;; TextFormat function is not implemented... omitting right box gui...
+      
+      (end-drawing)))
+  
+  (close-window)
+  0)
